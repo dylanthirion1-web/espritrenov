@@ -105,13 +105,30 @@ create table if not exists public.realisations (
   titre text not null check (char_length(titre) between 2 and 140),
   description text not null default '' check (char_length(description) <= 2000),
   categorie text not null check (categorie in ('Couverture', 'Zinguerie', 'Charpente')),
-  image_url text not null,
+  avant_url text,
+  apres_url text,
   ordre integer not null default 0,
   publie boolean not null default false,
   mise_en_avant boolean not null default false
 );
 
 alter table public.realisations add column if not exists mise_en_avant boolean not null default false;
+alter table public.realisations add column if not exists avant_url text;
+alter table public.realisations add column if not exists apres_url text;
+
+do $$
+begin
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'realisations'
+      and column_name = 'image_url'
+  ) then
+    execute 'update public.realisations set apres_url = image_url where apres_url is null';
+    execute 'alter table public.realisations drop column image_url';
+  end if;
+end $$;
 
 create index if not exists realisations_publie_ordre_idx on public.realisations (publie, ordre);
 

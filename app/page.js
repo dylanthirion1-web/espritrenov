@@ -1,5 +1,6 @@
 import PublicShell from "@/components/PublicShell";
-import ProjectMedia from "@/components/ProjectMedia";
+import BeforeAfter from "@/components/BeforeAfter";
+import ExpandableText from "@/components/ExpandableText";
 import QuoteForm from "@/components/QuoteForm";
 import { IconCharpente, IconCouverture, IconZinguerie } from "@/components/Icons";
 import { SITE } from "@/lib/constants";
@@ -28,26 +29,40 @@ const SERVICES = [
 async function getRealisations() {
   const supabase = await createClient();
   if (!supabase) return [];
-  const featured = await supabase
+  const next = await supabase
+    .from("realisations")
+    .select("id, titre, description, categorie, avant_url, apres_url, mise_en_avant")
+    .eq("publie", true)
+    .order("mise_en_avant", { ascending: false })
+    .order("ordre", { ascending: true })
+    .order("created_at", { ascending: false });
+  if (!next.error) return next.data || [];
+
+  const legacy = await supabase
     .from("realisations")
     .select("id, titre, description, categorie, image_url, mise_en_avant")
     .eq("publie", true)
     .order("mise_en_avant", { ascending: false })
     .order("ordre", { ascending: true })
     .order("created_at", { ascending: false });
-  if (!featured.error) return featured.data || [];
-
-  const fallback = await supabase
-    .from("realisations")
-    .select("id, titre, description, categorie, image_url")
-    .eq("publie", true)
-    .order("ordre", { ascending: true })
-    .order("created_at", { ascending: false });
-  if (fallback.error) {
-    console.error(fallback.error);
+  const source = legacy.error
+    ? await supabase
+        .from("realisations")
+        .select("id, titre, description, categorie, image_url")
+        .eq("publie", true)
+        .order("ordre", { ascending: true })
+        .order("created_at", { ascending: false })
+    : legacy;
+  if (source.error) {
+    console.error(source.error);
     return [];
   }
-  return (fallback.data || []).map((item) => ({ ...item, mise_en_avant: false }));
+  return (source.data || []).map((item) => ({
+    ...item,
+    avant_url: null,
+    apres_url: item.image_url || null,
+    mise_en_avant: Boolean(item.mise_en_avant),
+  }));
 }
 
 export default async function HomePage() {
@@ -184,14 +199,14 @@ export default async function HomePage() {
                 <div className="realisations_grid">
                   {realisations.map((item) => (
                       <article className="project_card" key={item.id}>
-                        <div className="project_media">
-                          <ProjectMedia src={item.image_url} alt={item.titre} />
-                        </div>
+                        <BeforeAfter avant={item.avant_url} apres={item.apres_url} alt={item.titre} />
                         <div className="project_body">
                           <p className="project_tag">{item.categorie}</p>
                           {item.mise_en_avant ? <p className="project_tag">Mis en avant</p> : null}
                           <h3 className="heading-style-h3">{item.titre}</h3>
-                          {item.description ? <p className="text-size-small text-color-muted">{item.description}</p> : null}
+                          {item.description ? (
+                            <ExpandableText text={item.description} className="text-size-small text-color-muted" />
+                          ) : null}
                         </div>
                       </article>
                     ))}

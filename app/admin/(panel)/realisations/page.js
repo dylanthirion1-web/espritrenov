@@ -6,21 +6,33 @@ export const metadata = { title: "Réalisations" };
 
 export default async function RealisationsPage() {
   const { supabase } = await getSessionProfile();
-  const featured = await supabase
+  const next = await supabase
     .from("realisations")
-    .select("id, titre, description, categorie, image_url, ordre, publie, mise_en_avant")
+    .select("id, titre, description, categorie, avant_url, apres_url, ordre, publie, mise_en_avant")
     .order("ordre", { ascending: true })
     .order("created_at", { ascending: false });
 
-  const data = featured.error
-    ? (
-        await supabase
+  let data = next.data;
+  if (next.error) {
+    const legacy = await supabase
+      .from("realisations")
+      .select("id, titre, description, categorie, image_url, ordre, publie, mise_en_avant")
+      .order("ordre", { ascending: true })
+      .order("created_at", { ascending: false });
+    const source = legacy.error
+      ? await supabase
           .from("realisations")
           .select("id, titre, description, categorie, image_url, ordre, publie")
           .order("ordre", { ascending: true })
           .order("created_at", { ascending: false })
-      ).data?.map((item) => ({ ...item, mise_en_avant: false }))
-    : featured.data;
+      : legacy;
+    data = (source.data || []).map((item) => ({
+      ...item,
+      avant_url: null,
+      apres_url: item.image_url || null,
+      mise_en_avant: Boolean(item.mise_en_avant),
+    }));
+  }
 
   return (
     <section>

@@ -50,12 +50,38 @@ async function uploadFile(supabase, file) {
   }
 
   const { data } = supabase.storage.from("realisations").getPublicUrl(path);
-  return { path, imageUrl: data.publicUrl };
+  return { path, url: data.publicUrl };
+}
+
+async function uploadOptional(supabase, file) {
+  if (!(file instanceof File) || file.size === 0) return { url: null, path: null };
+  return uploadFile(supabase, file);
+}
+
+async function uploadPair(supabase, formData) {
+  const avant = await uploadOptional(supabase, formData.get("avant"));
+  if (avant.error) return { error: avant.error };
+  const apres = await uploadOptional(supabase, formData.get("apres"));
+  if (apres.error) {
+    if (avant.path) await supabase.storage.from("realisations").remove([avant.path]);
+    return { error: apres.error };
+  }
+  return { avant, apres };
+}
+
+async function removeStored(supabase, urls) {
+  const paths = [...new Set(urls.map(storagePath).filter(Boolean))];
+  if (paths.length) await supabase.storage.from("realisations").remove(paths);
 }
 
 function missingFeaturedColumn(error) {
   const message = `${error?.message || ""} ${error?.details || ""}`;
-  return error?.code === "42703" || message.includes("mise_en_avant");
+  return message.includes("mise_en_avant");
+}
+
+function missingMediaColumns(error) {
+  const message = `${error?.message || ""} ${error?.details || ""}`;
+  return /avant_url|apres_url/.test(message);
 }
 
 async function insertRealisation(supabase, row) {
@@ -159,14 +185,15 @@ export async function createRealisation(formData) {
   if (!REALISATION_CATEGORIES.includes(categorie)) return { error: "Choisissez une catégorie." };
   if (ordre === null) return { error: "L'ordre doit être un nombre entre 0 et 999." };
 
-  const uploaded = await uploadFile(session.supabase, formData.get("image"));
-  if (uploaded.error) return { error: uploaded.error };
+  const files = await uploadPair(session.supabase, formData);
+  if (files.error) return { error: files.error };
 
   const { error: insertError } = await insertRealisation(session.supabase, {
     titre,
     description,
     categorie,
-    image_url: uploaded.imageUrl,
+    avant_url: files.avant.url,
+    apres_url: files.apres.url,
     ordre,
     publie,
     mise_en_avant: miseEnAvant,
@@ -174,9 +201,12 @@ export async function createRealisation(formData) {
 
   if (insertError) {
     console.error(insertError);
-    await session.supabase.storage.from("realisations").remove([uploaded.path]);
+    await removeStored(session.supabase, [files.avant.url, files.apres.url]);
     if (insertError.code === "featured-missing") {
       return { error: "Ajoutez d'abord la colonne mise_en_avant dans Supabase." };
+    }
+    if (missingMediaColumns(insertError)) {
+      return { error: "Exécutez d'abord la migration avant/après dans Supabase." };
     }
     return { error: "La réalisation n'a pas été enregistrée." };
   }
@@ -206,27 +236,29 @@ export async function updateRealisation(formData) {
 
   const { data: current, error: readError } = await session.supabase
     .from("realisations")
-    .select("image_url")
+    .select("avant_url, apres_url")
     .eq("id", id)
     .maybeSingle();
 
-  if (readError || !current) return { error: "Réalisation introuvable." };
-
-  let imageUrl = current.image_url;
-  let uploadedPath = null;
-  const file = formData.get("image");
-  if (file instanceof File && file.size > 0) {
-    const uploaded = await uploadFile(session.supabase, file);
-    if (uploaded.error) return { error: uploaded.error };
-    imageUrl = uploaded.imageUrl;
-    uploadedPath = uploaded.path;
+  if (readError || !current) {
+    if (missingMediaColumns(readError)) {
+      return { error: "Exécutez d'abord la migration avant/après dans Supabase." };
+    }
+    return { error: "Réalisation introuvable." };
   }
+
+  const files = await uploadPair(session.supabase, formData);
+  if (files.error) return { error: files.error };
+
+  const avantUrl = files.avant.url || current.avant_url;
+  const apresUrl = files.apres.url || current.apres_url;
 
   const { error: updateError } = await updateRealisationRow(session.supabase, id, {
     titre,
     description,
     categorie,
-    image_url: imageUrl,
+    avant_url: avantUrl,
+    apres_url: apresUrl,
     ordre,
     publie,
     mise_en_avant: miseEnAvant,
@@ -235,17 +267,20 @@ export async function updateRealisation(formData) {
 
   if (updateError) {
     console.error(updateError);
-    if (uploadedPath) await session.supabase.storage.from("realisations").remove([uploadedPath]);
+    await removeStored(session.supabase, [files.avant.url, files.apres.url]);
     if (updateError.code === "featured-missing") {
       return { error: "Ajoutez d'abord la colonne mise_en_avant dans Supabase." };
+    }
+    if (missingMediaColumns(updateError)) {
+      return { error: "Exécutez d'abord la migration avant/après dans Supabase." };
     }
     return { error: "La modification n'a pas été enregistrée." };
   }
 
-  if (uploadedPath) {
-    const previous = storagePath(current.image_url);
-    if (previous) await session.supabase.storage.from("realisations").remove([previous]);
-  }
+  await removeStored(session.supabase, [
+    files.avant.url ? current.avant_url : null,
+    files.apres.url ? current.apres_url : null,
+  ]);
 
   refreshRealisations();
   return { ok: true };
@@ -256,11 +291,15 @@ export async function deleteRealisation(id) {
   if (error) return { error };
   if (!UUID.test(String(id))) return { error: "Réalisation introuvable." };
 
-  const { data: current } = await session.supabase
+  const { data: current, error: readError } = await session.supabase
     .from("realisations")
-    .select("image_url")
+    .select("avant_url, apres_url")
     .eq("id", id)
     .maybeSingle();
+
+  if (readError && missingMediaColumns(readError)) {
+    return { error: "Exécutez d'abord la migration avant/après dans Supabase." };
+  }
 
   const { error: deleteError } = await session.supabase.from("realisations").delete().eq("id", id);
   if (deleteError) {
@@ -268,8 +307,7 @@ export async function deleteRealisation(id) {
     return { error: "La suppression a échoué." };
   }
 
-  const path = storagePath(current?.image_url);
-  if (path) await session.supabase.storage.from("realisations").remove([path]);
+  await removeStored(session.supabase, [current?.avant_url, current?.apres_url]);
 
   refreshRealisations();
   return { ok: true };

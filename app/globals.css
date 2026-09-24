@@ -154,6 +154,36 @@ select {
   color: var(--color-muted);
 }
 
+.free_text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.free_text.is-clamped {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
+  line-clamp: 5;
+  overflow: hidden;
+}
+
+.expandable {
+  display: grid;
+  justify-items: start;
+}
+
+.text_toggle {
+  margin-top: 0.35rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #ffb4d6;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
 .text-align-center {
   text-align: center;
 }
@@ -669,6 +699,24 @@ body.nav-open {
     linear-gradient(160deg, rgba(236, 63, 156, 0.4), rgba(91, 75, 255, 0.2) 60%, #121218);
 }
 
+.before_after {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.before_after figure {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+}
+
+.before_after figcaption {
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .project_media img,
 .project_media video {
   width: 100%;
@@ -1043,8 +1091,13 @@ select.form_input {
   .services_grid,
   .realisations_grid,
   .form_grid,
-  .about_badges {
+  .about_badges,
+  .before_after {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .before_after:has(> :only-child) {
+    grid-template-columns: 1fr;
   }
 
   .form_field.is-full,

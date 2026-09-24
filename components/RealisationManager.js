@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { REALISATION_CATEGORIES } from "@/lib/constants";
 import { createRealisation, deleteRealisation, setRealisationPublished, updateRealisation } from "@/app/admin/actions";
-import ProjectMedia from "@/components/ProjectMedia";
+import BeforeAfter from "@/components/BeforeAfter";
 
 function Fields({ item, prefix }) {
   const fieldId = (name) => `${prefix}-${name}`;
@@ -35,11 +35,22 @@ function Fields({ item, prefix }) {
           <input className="form_input" id={fieldId("ordre")} name="ordre" type="number" min="0" max="999" defaultValue={item?.ordre ?? 0} />
         </div>
         <div className="form_field">
-          <label className="form_label" htmlFor={fieldId("image")}>
-            {item ? "Nouveau fichier, facultatif" : "Fichier"}
+          <label className="form_label" htmlFor={fieldId("avant")}>
+            Avant travaux
           </label>
-          <input className="form_input" id={fieldId("image")} name="image" type="file" required={!item} />
-          <span className="text-size-small text-color-muted">Image, vidéo ou autre fichier. 50 Mo maximum.</span>
+          <input className="form_input" id={fieldId("avant")} name="avant" type="file" />
+          <span className="text-size-small text-color-muted">
+            {item ? "Facultatif. Vide = fichier conservé. 50 Mo maximum." : "Facultatif. Image, vidéo ou autre fichier. 50 Mo maximum."}
+          </span>
+        </div>
+        <div className="form_field">
+          <label className="form_label" htmlFor={fieldId("apres")}>
+            Après travaux
+          </label>
+          <input className="form_input" id={fieldId("apres")} name="apres" type="file" />
+          <span className="text-size-small text-color-muted">
+            {item ? "Facultatif. Vide = fichier conservé. 50 Mo maximum." : "Facultatif. Image, vidéo ou autre fichier. 50 Mo maximum."}
+          </span>
         </div>
         <div className="form_field is-full">
           <label className="form_label" htmlFor={fieldId("description")}>
@@ -105,9 +116,7 @@ export default function RealisationManager({ realisations }) {
 
       {realisations.map((item) => (
         <article className="admin_card" key={item.id}>
-          <div className="project_media">
-            <ProjectMedia src={item.image_url} alt={item.titre} />
-          </div>
+          <BeforeAfter avant={item.avant_url} apres={item.apres_url} alt={item.titre} />
           <div className="lead_top">
             <div>
               <p className="project_tag">{item.categorie}</p>

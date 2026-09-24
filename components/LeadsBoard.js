@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { LEAD_STATUSES, STATUS_LABELS, STATUSES_WITH_DATETIME } from "@/lib/constants";
 import { updateLeadStatus } from "@/app/admin/actions";
+import ExpandableText from "@/components/ExpandableText";
 
 const FILTERS = ["tous", ...LEAD_STATUSES];
 
@@ -156,7 +157,7 @@ export default function LeadsBoard({ leads }) {
                 <p>
                   {[lead.adresse, [lead.code_postal, lead.ville].filter(Boolean).join(" ")].filter(Boolean).join(", ")}
                 </p>
-                <p>{lead.projet}</p>
+                <ExpandableText text={lead.projet} />
                 {(lead.history || []).length > 0 ? (
                   <ol className="lead_history">
                     {lead.history.map((entry) => (
