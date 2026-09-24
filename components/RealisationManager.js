@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { REALISATION_CATEGORIES } from "@/lib/constants";
 import { createRealisation, deleteRealisation, setRealisationPublished, updateRealisation } from "@/app/admin/actions";
+import ProjectMedia from "@/components/ProjectMedia";
 
 function Fields({ item, prefix }) {
   const fieldId = (name) => `${prefix}-${name}`;
@@ -35,9 +36,10 @@ function Fields({ item, prefix }) {
         </div>
         <div className="form_field">
           <label className="form_label" htmlFor={fieldId("image")}>
-            {item ? "Nouvelle photo, facultatif" : "Photo"}
+            {item ? "Nouveau fichier, facultatif" : "Fichier"}
           </label>
-          <input className="form_input" id={fieldId("image")} name="image" type="file" accept="image/jpeg,image/png,image/webp" required={!item} />
+          <input className="form_input" id={fieldId("image")} name="image" type="file" required={!item} />
+          <span className="text-size-small text-color-muted">Image, vidéo ou autre fichier. 50 Mo maximum.</span>
         </div>
         <div className="form_field is-full">
           <label className="form_label" htmlFor={fieldId("description")}>
@@ -49,6 +51,10 @@ function Fields({ item, prefix }) {
       <label className="check_line" htmlFor={fieldId("publie")}>
         <input id={fieldId("publie")} type="checkbox" name="publie" defaultChecked={Boolean(item?.publie)} />
         Publié sur le site
+      </label>
+      <label className="check_line" htmlFor={fieldId("mise_en_avant")}>
+        <input id={fieldId("mise_en_avant")} type="checkbox" name="mise_en_avant" defaultChecked={Boolean(item?.mise_en_avant)} />
+        Mettre en avant
       </label>
     </>
   );
@@ -99,13 +105,16 @@ export default function RealisationManager({ realisations }) {
 
       {realisations.map((item) => (
         <article className="admin_card" key={item.id}>
-          <div className="project_media">{item.image_url ? <img src={item.image_url} alt="" /> : null}</div>
+          <div className="project_media">
+            <ProjectMedia src={item.image_url} alt={item.titre} />
+          </div>
           <div className="lead_top">
             <div>
               <p className="project_tag">{item.categorie}</p>
               <h2 className="heading-style-h3">{item.titre}</h2>
               <p className="text-size-small text-color-muted">
-                {item.publie ? "Publié" : "Masqué"} · ordre {item.ordre}
+                {item.publie ? "Publié" : "Masqué"}
+                {item.mise_en_avant ? " · Mis en avant" : ""} · ordre {item.ordre}
               </p>
             </div>
             <div className="admin_actions">

@@ -1,4 +1,5 @@
 import PublicShell from "@/components/PublicShell";
+import ProjectMedia from "@/components/ProjectMedia";
 import QuoteForm from "@/components/QuoteForm";
 import { IconCharpente, IconCouverture, IconZinguerie } from "@/components/Icons";
 import { SITE } from "@/lib/constants";
@@ -24,29 +25,29 @@ const SERVICES = [
   },
 ];
 
-function safeImage(url) {
-  try {
-    const parsed = new URL(url);
-    return parsed.protocol === "https:" ? parsed.href : "";
-  } catch {
-    return "";
-  }
-}
-
 async function getRealisations() {
   const supabase = await createClient();
   if (!supabase) return [];
-  const { data, error } = await supabase
+  const featured = await supabase
+    .from("realisations")
+    .select("id, titre, description, categorie, image_url, mise_en_avant")
+    .eq("publie", true)
+    .order("mise_en_avant", { ascending: false })
+    .order("ordre", { ascending: true })
+    .order("created_at", { ascending: false });
+  if (!featured.error) return featured.data || [];
+
+  const fallback = await supabase
     .from("realisations")
     .select("id, titre, description, categorie, image_url")
     .eq("publie", true)
     .order("ordre", { ascending: true })
     .order("created_at", { ascending: false });
-  if (error) {
-    console.error(error);
+  if (fallback.error) {
+    console.error(fallback.error);
     return [];
   }
-  return data || [];
+  return (fallback.data || []).map((item) => ({ ...item, mise_en_avant: false }));
 }
 
 export default async function HomePage() {
@@ -181,21 +182,19 @@ export default async function HomePage() {
                 <p className="empty_state">Les premières photos de chantier seront publiées ici.</p>
               ) : (
                 <div className="realisations_grid">
-                  {realisations.map((item) => {
-                    const src = safeImage(item.image_url);
-                    return (
+                  {realisations.map((item) => (
                       <article className="project_card" key={item.id}>
                         <div className="project_media">
-                          {src ? <img src={src} alt={item.titre} /> : null}
+                          <ProjectMedia src={item.image_url} alt={item.titre} />
                         </div>
                         <div className="project_body">
                           <p className="project_tag">{item.categorie}</p>
+                          {item.mise_en_avant ? <p className="project_tag">Mis en avant</p> : null}
                           <h3 className="heading-style-h3">{item.titre}</h3>
                           {item.description ? <p className="text-size-small text-color-muted">{item.description}</p> : null}
                         </div>
                       </article>
-                    );
-                  })}
+                    ))}
                 </div>
               )}
               <div className="project_cta">

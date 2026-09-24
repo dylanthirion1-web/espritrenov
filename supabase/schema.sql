@@ -107,8 +107,11 @@ create table if not exists public.realisations (
   categorie text not null check (categorie in ('Couverture', 'Zinguerie', 'Charpente')),
   image_url text not null,
   ordre integer not null default 0,
-  publie boolean not null default false
+  publie boolean not null default false,
+  mise_en_avant boolean not null default false
 );
+
+alter table public.realisations add column if not exists mise_en_avant boolean not null default false;
 
 create index if not exists realisations_publie_ordre_idx on public.realisations (publie, ordre);
 
@@ -355,8 +358,8 @@ values (
   'realisations',
   'realisations',
   true,
-  5242880,
-  array['image/jpeg', 'image/png', 'image/webp']
+  52428800,
+  null
 )
 on conflict (id) do update
 set public = excluded.public,

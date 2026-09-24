@@ -669,10 +669,27 @@ body.nav-open {
     linear-gradient(160deg, rgba(236, 63, 156, 0.4), rgba(91, 75, 255, 0.2) 60%, #121218);
 }
 
-.project_media img {
+.project_media img,
+.project_media video {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  display: block;
+}
+
+.project_media video {
+  object-fit: contain;
+  background: #000;
+}
+
+.project_file {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 1rem;
+  text-align: center;
 }
 
 .project_body {

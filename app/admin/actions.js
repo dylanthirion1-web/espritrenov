@@ -7,11 +7,7 @@ import { assertAdmin, assertStaff } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const MIME = {
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/webp": "webp",
-};
+const MAX_FILE_BYTES = 50 * 1024 * 1024;
 
 function clean(value) {
   return String(value ?? "").trim();
@@ -30,26 +26,52 @@ function readOrdre(value) {
   return ordre;
 }
 
-async function uploadImage(supabase, file) {
-  if (!(file instanceof File) || file.size === 0) return { error: "Ajoutez une photo." };
-  if (file.size > 5 * 1024 * 1024) return { error: "Photo trop lourde : 5 Mo maximum." };
-  const extension = MIME[file.type];
-  if (!extension) return { error: "Utilisez une photo JPG, PNG ou WebP." };
+function fileExtension(file) {
+  const match = String(file.name || "")
+    .toLowerCase()
+    .match(/\.([a-z0-9]{1,10})$/);
+  return match ? match[1] : "bin";
+}
 
-  const path = `${crypto.randomUUID()}.${extension}`;
+async function uploadFile(supabase, file) {
+  if (!(file instanceof File) || file.size === 0) return { error: "Ajoutez un fichier." };
+  if (file.size > MAX_FILE_BYTES) return { error: "Fichier trop lourd : 50 Mo maximum." };
+
+  const path = `${crypto.randomUUID()}.${fileExtension(file)}`;
   const buffer = Buffer.from(await file.arrayBuffer());
   const { error } = await supabase.storage.from("realisations").upload(path, buffer, {
-    contentType: file.type,
+    contentType: file.type || "application/octet-stream",
     upsert: false,
   });
 
   if (error) {
     console.error(error);
-    return { error: "La photo n'a pas pu être envoyée." };
+    return { error: "Le fichier n'a pas pu être envoyé." };
   }
 
   const { data } = supabase.storage.from("realisations").getPublicUrl(path);
   return { path, imageUrl: data.publicUrl };
+}
+
+function missingFeaturedColumn(error) {
+  const message = `${error?.message || ""} ${error?.details || ""}`;
+  return error?.code === "42703" || message.includes("mise_en_avant");
+}
+
+async function insertRealisation(supabase, row) {
+  const first = await supabase.from("realisations").insert(row);
+  if (!first.error || !missingFeaturedColumn(first.error)) return first;
+  if (row.mise_en_avant) return { error: { code: "featured-missing" } };
+  const { mise_en_avant, ...rest } = row;
+  return supabase.from("realisations").insert(rest);
+}
+
+async function updateRealisationRow(supabase, id, row) {
+  const first = await supabase.from("realisations").update(row).eq("id", id);
+  if (!first.error || !missingFeaturedColumn(first.error)) return first;
+  if (row.mise_en_avant) return { error: { code: "featured-missing" } };
+  const { mise_en_avant, ...rest } = row;
+  return supabase.from("realisations").update(rest).eq("id", id);
 }
 
 function refreshRealisations() {
@@ -130,27 +152,32 @@ export async function createRealisation(formData) {
   const categorie = clean(formData.get("categorie"));
   const ordre = readOrdre(formData.get("ordre"));
   const publie = formData.get("publie") === "on";
+  const miseEnAvant = formData.get("mise_en_avant") === "on";
 
   if (titre.length < 2 || titre.length > 140) return { error: "Indiquez un titre." };
   if (description.length > 2000) return { error: "La description est trop longue." };
   if (!REALISATION_CATEGORIES.includes(categorie)) return { error: "Choisissez une catégorie." };
   if (ordre === null) return { error: "L'ordre doit être un nombre entre 0 et 999." };
 
-  const uploaded = await uploadImage(session.supabase, formData.get("image"));
+  const uploaded = await uploadFile(session.supabase, formData.get("image"));
   if (uploaded.error) return { error: uploaded.error };
 
-  const { error: insertError } = await session.supabase.from("realisations").insert({
+  const { error: insertError } = await insertRealisation(session.supabase, {
     titre,
     description,
     categorie,
     image_url: uploaded.imageUrl,
     ordre,
     publie,
+    mise_en_avant: miseEnAvant,
   });
 
   if (insertError) {
     console.error(insertError);
     await session.supabase.storage.from("realisations").remove([uploaded.path]);
+    if (insertError.code === "featured-missing") {
+      return { error: "Ajoutez d'abord la colonne mise_en_avant dans Supabase." };
+    }
     return { error: "La réalisation n'a pas été enregistrée." };
   }
 
@@ -170,6 +197,7 @@ export async function updateRealisation(formData) {
   const categorie = clean(formData.get("categorie"));
   const ordre = readOrdre(formData.get("ordre"));
   const publie = formData.get("publie") === "on";
+  const miseEnAvant = formData.get("mise_en_avant") === "on";
 
   if (titre.length < 2 || titre.length > 140) return { error: "Indiquez un titre." };
   if (description.length > 2000) return { error: "La description est trop longue." };
@@ -188,28 +216,29 @@ export async function updateRealisation(formData) {
   let uploadedPath = null;
   const file = formData.get("image");
   if (file instanceof File && file.size > 0) {
-    const uploaded = await uploadImage(session.supabase, file);
+    const uploaded = await uploadFile(session.supabase, file);
     if (uploaded.error) return { error: uploaded.error };
     imageUrl = uploaded.imageUrl;
     uploadedPath = uploaded.path;
   }
 
-  const { error: updateError } = await session.supabase
-    .from("realisations")
-    .update({
-      titre,
-      description,
-      categorie,
-      image_url: imageUrl,
-      ordre,
-      publie,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", id);
+  const { error: updateError } = await updateRealisationRow(session.supabase, id, {
+    titre,
+    description,
+    categorie,
+    image_url: imageUrl,
+    ordre,
+    publie,
+    mise_en_avant: miseEnAvant,
+    updated_at: new Date().toISOString(),
+  });
 
   if (updateError) {
     console.error(updateError);
     if (uploadedPath) await session.supabase.storage.from("realisations").remove([uploadedPath]);
+    if (updateError.code === "featured-missing") {
+      return { error: "Ajoutez d'abord la colonne mise_en_avant dans Supabase." };
+    }
     return { error: "La modification n'a pas été enregistrée." };
   }
 
