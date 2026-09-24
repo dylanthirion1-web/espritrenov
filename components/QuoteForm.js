@@ -4,7 +4,17 @@ import { useState } from "react";
 import { WORK_TYPES } from "@/lib/constants";
 import { submitLead } from "@/app/actions";
 
-const EMPTY = { nom: "", telephone: "", email: "", typeTravaux: "", projet: "", company: "" };
+const EMPTY = {
+  nom: "",
+  telephone: "",
+  email: "",
+  typeTravaux: "",
+  adresse: "",
+  ville: "",
+  codePostal: "",
+  projet: "",
+  company: "",
+};
 
 export default function QuoteForm() {
   const [values, setValues] = useState(EMPTY);
@@ -85,6 +95,51 @@ export default function QuoteForm() {
               <option key={type}>{type}</option>
             ))}
           </select>
+        </div>
+        <div className="form_field is-full">
+          <label className="form_label" htmlFor="adresse">
+            Adresse
+          </label>
+          <input
+            className="form_input"
+            id="adresse"
+            name="adresse"
+            autoComplete="street-address"
+            required
+            value={values.adresse}
+            onChange={update}
+          />
+        </div>
+        <div className="form_field">
+          <label className="form_label" htmlFor="ville">
+            Ville
+          </label>
+          <input
+            className="form_input"
+            id="ville"
+            name="ville"
+            autoComplete="address-level2"
+            required
+            value={values.ville}
+            onChange={update}
+          />
+        </div>
+        <div className="form_field">
+          <label className="form_label" htmlFor="codePostal">
+            Code postal
+          </label>
+          <input
+            className="form_input"
+            id="codePostal"
+            name="codePostal"
+            inputMode="numeric"
+            autoComplete="postal-code"
+            maxLength={5}
+            pattern="[0-9]{5}"
+            required
+            value={values.codePostal}
+            onChange={update}
+          />
         </div>
         <div className="form_field is-full">
           <label className="form_label" htmlFor="projet">

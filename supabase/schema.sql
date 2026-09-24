@@ -32,9 +32,28 @@ create table if not exists public.leads (
   telephone text not null check (char_length(telephone) between 8 and 30),
   email text not null check (email ~* '^[^@\s]+@[^@\s]+\.[^@\s]+$'),
   type_travaux text not null check (type_travaux in ('Couverture', 'Zinguerie', 'Charpente', 'Autre')),
+  adresse text not null check (char_length(adresse) between 2 and 200),
+  ville text not null check (char_length(ville) between 2 and 80),
+  code_postal text not null check (code_postal ~ '^[0-9]{5}$'),
   projet text not null check (char_length(projet) between 12 and 4000),
   statut text not null default 'nouveau' check (statut in ('nouveau', 'en cours', 'traité'))
 );
+
+alter table public.leads add column if not exists adresse text;
+alter table public.leads add column if not exists ville text;
+alter table public.leads add column if not exists code_postal text;
+
+alter table public.leads drop constraint if exists leads_adresse_len;
+alter table public.leads add constraint leads_adresse_len
+  check (adresse is null or char_length(adresse) between 2 and 200);
+
+alter table public.leads drop constraint if exists leads_ville_len;
+alter table public.leads add constraint leads_ville_len
+  check (ville is null or char_length(ville) between 2 and 80);
+
+alter table public.leads drop constraint if exists leads_code_postal_format;
+alter table public.leads add constraint leads_code_postal_format
+  check (code_postal is null or code_postal ~ '^[0-9]{5}$');
 
 create index if not exists leads_statut_created_idx on public.leads (statut, created_at desc);
 

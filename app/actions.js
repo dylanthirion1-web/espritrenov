@@ -15,6 +15,9 @@ export async function submitLead(input) {
   const telephone = clean(input?.telephone);
   const email = clean(input?.email).toLowerCase();
   const typeTravaux = clean(input?.typeTravaux);
+  const adresse = clean(input?.adresse);
+  const ville = clean(input?.ville);
+  const codePostal = clean(input?.codePostal);
   const projet = clean(input?.projet);
 
   if (nom.length < 2 || nom.length > 120) return { error: "Indiquez votre nom." };
@@ -25,6 +28,9 @@ export async function submitLead(input) {
     return { error: "Indiquez un e-mail valide." };
   }
   if (!WORK_TYPES.includes(typeTravaux)) return { error: "Choisissez un type de travaux." };
+  if (adresse.length < 2 || adresse.length > 200) return { error: "Indiquez l'adresse du chantier." };
+  if (ville.length < 2 || ville.length > 80) return { error: "Indiquez la ville du chantier." };
+  if (!/^[0-9]{5}$/.test(codePostal)) return { error: "Indiquez un code postal à 5 chiffres." };
   if (projet.length < 12 || projet.length > 4000) {
     return { error: "Décrivez le projet en quelques phrases." };
   }
@@ -39,6 +45,9 @@ export async function submitLead(input) {
     telephone,
     email,
     type_travaux: typeTravaux,
+    adresse,
+    ville,
+    code_postal: codePostal,
     projet,
     statut: "nouveau",
   });

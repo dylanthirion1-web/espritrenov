@@ -84,6 +84,9 @@ export default function LeadsBoard({ leads }) {
                 <a href={`mailto:${lead.email}`}>{lead.email}</a>
               </p>
               <p className="project_tag">{lead.type_travaux}</p>
+              <p>
+                {[lead.adresse, [lead.code_postal, lead.ville].filter(Boolean).join(" ")].filter(Boolean).join(", ")}
+              </p>
               <p>{lead.projet}</p>
             </article>
           ))}
