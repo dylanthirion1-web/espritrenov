@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { WORK_TYPES } from "@/lib/constants";
+import { SITE, WORK_TYPES } from "@/lib/constants";
 import { submitLead } from "@/app/actions";
 
 const EMPTY = {
@@ -15,6 +15,33 @@ const EMPTY = {
   projet: "",
   company: "",
 };
+
+function splitName(fullName) {
+  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+  return {
+    prenom: parts[0] || "",
+    nom: parts.slice(1).join(" "),
+  };
+}
+
+function downloadContact() {
+  const card = [
+    "BEGIN:VCARD",
+    "VERSION:3.0",
+    "FN:Esprit Rénov'",
+    "ORG:Esprit Rénov'",
+    "TEL:0780641511",
+    "EMAIL:espritrenov10@gmail.com",
+    "END:VCARD",
+  ].join("\r\n");
+  const blob = new Blob([card], { type: "text/vcard;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "esprit-renov.vcf";
+  link.click();
+  URL.revokeObjectURL(url);
+}
 
 export default function QuoteForm() {
   const [values, setValues] = useState(EMPTY);
@@ -41,10 +68,18 @@ export default function QuoteForm() {
   }
 
   if (done) {
+    const { prenom, nom } = splitName(values.nom);
+    const greeting = [prenom, nom].filter(Boolean).join(" ");
     return (
       <div className="form_success" role="status">
         <h3 className="heading-style-h3">Demande envoyée</h3>
-        <p>Merci {values.nom}. Nous revenons vers vous sous 48 h, sans engagement.</p>
+        <p>Merci {greeting}, votre demande a bien été transmise. Nous revenons vers vous sous 48 h, sans engagement.</p>
+        <p>
+          Pour éviter toute confusion avec du démarchage téléphonique, enregistrez dès maintenant notre numéro dans vos contacts : {SITE.phoneDisplay}
+        </p>
+        <button className="button" type="button" onClick={downloadContact}>
+          Ajouter le contact
+        </button>
       </div>
     );
   }
