@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { LEAD_STATUSES, REALISATION_CATEGORIES } from "@/lib/constants";
+import { LEAD_STATUSES, REALISATION_CATEGORIES, STATUSES_WITH_DATETIME } from "@/lib/constants";
 import { assertAdmin, assertStaff } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
@@ -77,9 +77,18 @@ export async function signOut() {
   redirect("/admin/login");
 }
 
-export async function updateLeadStatus(id, statut) {
+export async function updateLeadStatus(id, statut, dateHeure) {
   if (!UUID.test(String(id)) || !LEAD_STATUSES.includes(statut)) {
     return { error: "Demande introuvable." };
+  }
+
+  let dateIso = null;
+  if (STATUSES_WITH_DATETIME.includes(statut)) {
+    const parsed = new Date(dateHeure);
+    if (!dateHeure || Number.isNaN(parsed.getTime())) {
+      return { error: "Indiquez une date et une heure." };
+    }
+    dateIso = parsed.toISOString();
   }
 
   const { error, session } = await assertStaff();
@@ -93,6 +102,19 @@ export async function updateLeadStatus(id, statut) {
   if (updateError) {
     console.error(updateError);
     return { error: "Le statut n'a pas été modifié." };
+  }
+
+  const { error: historyError } = await session.supabase.from("lead_history").insert({
+    lead_id: id,
+    statut,
+    date_heure: dateIso,
+    created_by: session.user.id,
+  });
+
+  if (historyError) {
+    console.error(historyError);
+    revalidatePath("/admin");
+    return { error: "Le statut est enregistré, mais l'historique n'a pas pu être ajouté." };
   }
 
   revalidatePath("/admin");

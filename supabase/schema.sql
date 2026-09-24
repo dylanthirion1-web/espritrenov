@@ -36,7 +36,17 @@ create table if not exists public.leads (
   ville text not null check (char_length(ville) between 2 and 80),
   code_postal text not null check (code_postal ~ '^[0-9]{5}$'),
   projet text not null check (char_length(projet) between 12 and 4000),
-  statut text not null default 'nouveau' check (statut in ('nouveau', 'en cours', 'traité'))
+  statut text not null default 'nouveau' check (statut in (
+    'nouveau',
+    'contacte',
+    'ne_repond_pas',
+    'rdv_planifie',
+    'devis_envoye',
+    'devis_signe',
+    'acompte_verse',
+    'chantier_programme',
+    'chantier_termine'
+  ))
 );
 
 alter table public.leads add column if not exists adresse text;
@@ -56,6 +66,37 @@ alter table public.leads add constraint leads_code_postal_format
   check (code_postal is null or code_postal ~ '^[0-9]{5}$');
 
 create index if not exists leads_statut_created_idx on public.leads (statut, created_at desc);
+
+create table if not exists public.lead_history (
+  id uuid primary key default gen_random_uuid(),
+  lead_id uuid not null references public.leads (id) on delete cascade,
+  statut text not null check (statut in (
+    'nouveau',
+    'contacte',
+    'ne_repond_pas',
+    'rdv_planifie',
+    'devis_envoye',
+    'devis_signe',
+    'acompte_verse',
+    'chantier_programme',
+    'chantier_termine'
+  )),
+  date_heure timestamptz,
+  constraint lead_history_date_heure_check check (
+    (
+      statut in ('ne_repond_pas', 'rdv_planifie', 'acompte_verse', 'chantier_programme')
+      and date_heure is not null
+    )
+    or (
+      statut not in ('ne_repond_pas', 'rdv_planifie', 'acompte_verse', 'chantier_programme')
+      and date_heure is null
+    )
+  ),
+  created_at timestamptz not null default now(),
+  created_by uuid references auth.users (id) on delete set null
+);
+
+create index if not exists lead_history_lead_created_idx on public.lead_history (lead_id, created_at desc);
 
 create table if not exists public.realisations (
   id uuid primary key default gen_random_uuid(),
@@ -163,22 +204,45 @@ create trigger leads_force_new
   before insert on public.leads
   for each row execute function public.force_new_lead();
 
+create or replace function public.log_new_lead()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into public.lead_history (lead_id, statut, date_heure, created_by)
+  values (new.id, new.statut, null, auth.uid());
+  return new;
+end;
+$$;
+
+revoke all on function public.log_new_lead() from public;
+
+drop trigger if exists leads_log_created on public.leads;
+create trigger leads_log_created
+  after insert on public.leads
+  for each row execute function public.log_new_lead();
+
 -- ---------------------------------------------------------------------------
 -- Droits
 -- ---------------------------------------------------------------------------
 
 revoke all on public.profiles from anon;
 revoke all on public.leads from anon;
+revoke all on public.lead_history from anon;
 revoke all on public.realisations from anon;
 
 grant select, update on public.profiles to authenticated;
 grant insert on public.leads to anon, authenticated;
 grant select, update, delete on public.leads to authenticated;
+grant select, insert, update, delete on public.lead_history to authenticated;
 grant select on public.realisations to anon, authenticated;
 grant insert, update, delete on public.realisations to authenticated;
 
 alter table public.profiles enable row level security;
 alter table public.leads enable row level security;
+alter table public.lead_history enable row level security;
 alter table public.realisations enable row level security;
 
 -- Profiles : chacun lit sa ligne, seul l'admin lit et modifie l'ensemble.
@@ -213,7 +277,42 @@ create policy "leads_update_staff"
   on public.leads for update
   to authenticated
   using (public.is_staff())
-  with check (public.is_staff() and statut in ('nouveau', 'en cours', 'traité'));
+  with check (public.is_staff() and statut in (
+    'nouveau',
+    'contacte',
+    'ne_repond_pas',
+    'rdv_planifie',
+    'devis_envoye',
+    'devis_signe',
+    'acompte_verse',
+    'chantier_programme',
+    'chantier_termine'
+  ));
+
+drop policy if exists "lead_history_select_staff" on public.lead_history;
+create policy "lead_history_select_staff"
+  on public.lead_history for select
+  to authenticated
+  using (public.is_staff());
+
+drop policy if exists "lead_history_insert_staff" on public.lead_history;
+create policy "lead_history_insert_staff"
+  on public.lead_history for insert
+  to authenticated
+  with check (public.is_staff() and created_by = auth.uid());
+
+drop policy if exists "lead_history_update_staff" on public.lead_history;
+create policy "lead_history_update_staff"
+  on public.lead_history for update
+  to authenticated
+  using (public.is_staff())
+  with check (public.is_staff());
+
+drop policy if exists "lead_history_delete_staff" on public.lead_history;
+create policy "lead_history_delete_staff"
+  on public.lead_history for delete
+  to authenticated
+  using (public.is_staff());
 
 drop policy if exists "leads_delete_staff" on public.leads;
 create policy "leads_delete_staff"
