@@ -12,17 +12,17 @@ const SERVICES = [
   {
     title: "Couverture",
     icon: IconCouverture,
-    text: "Tuiles, ardoises ou système adapté au bâti. Les entrées d'eau, le faîtage et les rives sont repris avant que l'humidité n'atteigne les pièces.",
+    text: "Pose et réparation de tuiles, ardoises ou zinc. Nous traitons les points sensibles (faîtage, rives, entrées d'eau) pour garder votre toit parfaitement étanche.",
   },
   {
     title: "Zinguerie",
     icon: IconZinguerie,
-    text: "Gouttières, chéneaux, noues, solins et habillages. L'eau est conduite, les murs restent secs, les jonctions avec la façade restent nettes.",
+    text: "Gouttières, chéneaux et habillages sur mesure. L'eau de pluie est évacuée correctement, vos murs et façades restent protégés de l'humidité.",
   },
   {
     title: "Charpente",
     icon: IconCharpente,
-    text: "Contrôle, renfort et reprise du bois, traditionnel ou industriel. La structure est vérifiée avant de reposer la couverture.",
+    text: "Diagnostic, renforcement ou remplacement de la structure bois. On s'assure que votre charpente est saine avant toute intervention sur la couverture.",
   },
 ];
 
@@ -86,7 +86,7 @@ export default async function HomePage() {
     },
     hasOfferCatalog: {
       "@type": "OfferCatalog",
-      name: "Métiers",
+      name: "Nos services",
       itemListElement: SERVICES.map((service) => ({
         "@type": "Offer",
         itemOffered: { "@type": "Service", name: service.title },
@@ -125,10 +125,10 @@ export default async function HomePage() {
           <div className="container-large">
             <div className="padding-section-large">
               <div className="section_heading margin-bottom margin-large">
-                <p className="eyebrow">Métiers</p>
-                <h2 className="heading-style-h2">Trois gestes pour un bâtiment au sec.</h2>
+                <p className="eyebrow">Nos services</p>
+                <h2 className="heading-style-h2">Votre toiture, protégée de A à Z</h2>
                 <p className="text-size-large text-color-muted max-width-medium margin-top margin-small">
-                  Couverture, zinguerie et charpente avancent ensemble. Quand le projet le demande, la rénovation se poursuit à l&apos;intérieur comme à l&apos;extérieur.
+                  Que ce soit une réparation ponctuelle ou une rénovation complète, nous intervenons sur l&apos;ensemble de votre toiture : couverture, évacuation des eaux et structure.
                 </p>
               </div>
               <div className="services_grid">
@@ -146,7 +146,7 @@ export default async function HomePage() {
                 })}
               </div>
               <div className="services_band">
-                <p className="text-weight-bold">Un avis sur votre toit, tout de suite ?</p>
+                <p className="text-weight-bold">Une question sur votre toit ?</p>
                 <a className="band_phone" href={SITE.phoneHref}>
                   {SITE.phoneDisplay}
                 </a>
@@ -162,22 +162,25 @@ export default async function HomePage() {
             <div className="padding-section-large">
               <div className="about_component">
                 <div>
-                  <p className="eyebrow">À propos</p>
-                  <h2 className="heading-style-h2">Qui sommes-nous</h2>
+                  <p className="eyebrow">Qui sommes-nous</p>
+                  <h2 className="heading-style-h2">Une équipe à votre écoute, du premier contact à la fin du chantier</h2>
                   <p className="text-size-large text-color-muted margin-top margin-small">
-                    Esprit Rénov&apos; suit la maison dans son ensemble : pièces de vie, façades, et d&apos;abord le clos et le couvert. La couverture, la zinguerie et la charpente restent le cœur du travail.
+                    Esprit Rénov&apos; intervient sur tous vos travaux de couverture, zinguerie et charpente, à Nancy et dans un rayon de 150 km.
                   </p>
                   <p className="text-color-muted margin-top margin-small">
-                    Le devis nomme les postes, le délai et ce qui reste en dehors du marché. Vous décidez ensuite, sans engagement. Un seul interlocuteur reste joignable du premier passage sur le toit jusqu&apos;à la réception.
+                    Chaque devis détaille clairement les travaux prévus, le délai et le prix, sans surprise. Vous restez libre de votre décision, sans aucun engagement.
+                  </p>
+                  <p className="text-color-muted margin-top margin-small">
+                    Un seul interlocuteur vous accompagne du premier rendez-vous jusqu&apos;à la réception du chantier.
                   </p>
                   <a className="button margin-top margin-medium" href="#devis">
                     Demander un devis gratuit
                   </a>
                 </div>
                 <ul className="about_badges" aria-label="Repères">
-                  <li className="about_badge">{SITE.zone}</li>
-                  <li className="about_badge">DEVIS SOUS 48 H</li>
-                  <li className="about_badge">ASSURÉ & DÉCENNALE</li>
+                  <li className="about_badge">Nancy et Grand Est</li>
+                  <li className="about_badge">Devis sous 48h</li>
+                  <li className="about_badge">Assuré & garantie décennale</li>
                 </ul>
               </div>
             </div>
